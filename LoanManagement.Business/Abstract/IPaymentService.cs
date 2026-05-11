@@ -4,6 +4,7 @@ namespace LoanManagement.Business.Abstract;
 
 public interface IPaymentService
 {
-    Task PayInstallmentAsync(int installmentId, decimal amount);
+    Task<List<Payment>> GetAllPaymentsAsync();
+
     Task<List<Installment>> GetInstallmentsByLoanIdAsync(int loanId);
 }

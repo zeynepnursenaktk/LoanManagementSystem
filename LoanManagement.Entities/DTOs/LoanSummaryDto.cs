@@ -1,13 +1,13 @@
-namespace LoanManagement.Entities.DTOs;
-
-
-// Müşteri detayında kredileri özet olarak göstermek için kullanılan DTO.
-// Taksit detayları bu DTO'da yer almaz, sadece kredi özeti sunulur.
 public class LoanSummaryDto
 {
-    public int Id { get; set; }
+    public int LoanId { get; set; }
+    public string LoanTypeName { get; set; } = null!;
+    public string Status { get; set; } = null!;
     public decimal Amount { get; set; }
     public int Tenor { get; set; }
-    public string Status { get; set; } = null!;
-    public DateTime StartDate { get; set; }
+    public DateTime? StartDate { get; set; }
+    public int TotalInstallments { get; set; }
+    public int PaidInstallments { get; set; }
+    public int UnpaidInstallments { get; set; }
+    public decimal RemainingDebt { get; set; }
 }

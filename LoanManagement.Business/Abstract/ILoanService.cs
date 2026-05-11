@@ -1,14 +1,13 @@
-using LoanManagement.Entities.Models;
-using LoanManagement.Entities.DTOs; 
+using LoanManagement.Entities.DTOs;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+
 namespace LoanManagement.Business.Abstract;
 
 public interface ILoanService
 {
-    // Bir kredi kaydı oluştururken aynı zamanda taksitlerini de otomatik hesaplayıp kaydedecek metot
-    Task CreateLoanWithInstallmentsAsync(Loan loan);
-    
-    // Müşterinin veya bankanın kredileri listelemesi için
-    Task<List<Loan>> GetAllLoansAsync();
-
+    Task<int> CreateLoanWithInstallmentsAsync(LoanRequestDto loanDto); 
     Task<LoanResponseDto?> GetLoanByIdDtoAsync(int id);
+    Task<PaymentResponseDto?> PayInstallmentAsync(PaymentRequestDto request);
+    Task<List<LoanResponseDto>> GetAllLoansDtoAsync();
 }

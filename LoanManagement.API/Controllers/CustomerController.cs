@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using LoanManagement.Business.Abstract;
-using LoanManagement.Entities.Models;
-
-namespace LoanManagement.API.Controllers;
+using LoanManagement.Entities.DTOs;
 
 [Route("api/[controller]")]
-[ApiController] // Bu attribute, gelen verilerin otomatik doğrulanmasını sağlar
+[ApiController]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _customerService;
@@ -15,14 +13,16 @@ public class CustomersController : ControllerBase
         _customerService = customerService;
     }
 
-    [HttpGet] // Tüm müşterileri listeler
+    // GET: api/customers
+    [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var customers = await _customerService.GetAllAsync();
         return Ok(customers);
     }
 
-    [HttpGet("{id}")] // ID'ye göre müşteri getirir
+    // GET: api/customers/{id}
+    [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
         var customer = await _customerService.GetByIdAsync(id);
@@ -30,10 +30,29 @@ public class CustomersController : ControllerBase
         return Ok(customer);
     }
 
-    [HttpPost] // Yeni müşteri ekler
-    public async Task<IActionResult> Create(Customer customer)
+    // POST: api/customers
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateCustomerDto dto)
     {
-        await _customerService.AddAsync(customer);
-        return CreatedAtAction(nameof(GetById), new { id = customer.Id }, customer);
+        var id = await _customerService.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id }, new { id });
+    }
+
+    // PUT: api/customers/{id}
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateCustomerDto dto)
+    {
+        var ok = await _customerService.UpdateAsync(id, dto);
+        if (!ok) return NotFound("Müşteri bulunamadı.");
+        return Ok("Güncellendi.");
+    }
+
+    // GET: api/customers/{id}/summary
+    [HttpGet("{id}/summary")]
+    public async Task<IActionResult> GetSummary(int id)
+    {
+        var summary = await _customerService.GetCustomerSummaryAsync(id);
+        if (summary == null) return NotFound("Müşteri bulunamadı.");
+        return Ok(summary);
     }
 }

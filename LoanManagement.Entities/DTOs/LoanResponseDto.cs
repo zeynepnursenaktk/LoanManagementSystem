@@ -1,14 +1,19 @@
-namespace LoanManagement.Entities.DTOs;
+using System;
+using System.Collections.Generic;
 
-
-// Kredi detay sorgularında API'den dönen veri transfer nesnesi.
-public class LoanResponseDto
+namespace LoanManagement.Entities.DTOs
 {
-    public int Id { get; set; }
-    public decimal Amount { get; set; }
-    public int Tenor { get; set; }
-    public decimal ProfitRate { get; set; }
-    public DateTime StartDate { get; set; }
-    public string Status { get; set; } = null!;
-    public List<InstallmentDto> Installments { get; set; } = new();
+    public class LoanResponseDto
+    {
+        public int Id { get; set; }
+        public int CustomerId { get; set; }
+        public string CustomerFullName { get; set; } = null!;
+        public string LoanTypeName { get; set; } = null!;
+        public decimal Amount { get; set; }
+        public int Tenor { get; set; }
+        public decimal ProfitRate { get; set; }
+        public DateTime StartDate { get; set; }
+        public string Status { get; set; } = null!;
+        public List<InstallmentDto> Installments { get; set; } = new();
+    }
 }

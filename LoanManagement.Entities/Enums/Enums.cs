@@ -2,9 +2,9 @@ namespace LoanManagement.Entities.Enums;
 
 public enum LoanType
 {
-    Personal = 1, //İhtiyaç Kredisi
-    Education=2,  //Eğitim Kredisi
-    Vehicle=3     //Taşıt Kredisi
+    Personal = 0, //İhtiyaç Kredisi
+    Education=1,  //Eğitim Kredisi
+    Vehicle=2     //Taşıt Kredisi
 }
 
 public enum LoanStatus
