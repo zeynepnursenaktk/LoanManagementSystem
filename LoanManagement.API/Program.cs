@@ -2,6 +2,9 @@
 using LoanManagement.DataAccess.Context;
 using Microsoft.EntityFrameworkCore;
 
+using LoanManagement.Business.Abstract;
+using LoanManagement.Business.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -10,6 +13,12 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<LoanDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<ILoanService, LoanService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+
+builder.Services.AddControllers();
 
 var app = builder.Build();
 

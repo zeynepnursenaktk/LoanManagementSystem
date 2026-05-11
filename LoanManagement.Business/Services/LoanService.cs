@@ -3,6 +3,8 @@ using LoanManagement.Business.Abstract;
 using LoanManagement.DataAccess.Context;
 using LoanManagement.Entities.Models;
 using LoanManagement.Entities.Enums;
+using LoanManagement.Entities.DTOs;
+
 
 namespace LoanManagement.Business.Services;
 
@@ -60,4 +62,38 @@ public class LoanService : ILoanService
             .Include(l => l.Customer)
             .FirstOrDefaultAsync(l => l.Id == id);
     }
+
+
+    public async Task<LoanResponseDto?> GetLoanByIdDtoAsync(int id)
+{
+    // 1. Veriyi her zamanki gibi veritabanından çekiyoruz
+    var loan = await _context.Loans
+        .Include(l => l.Installments)
+        .FirstOrDefaultAsync(l => l.Id == id);
+
+    if (loan == null) return null;
+
+    // 2. Çektiğimiz veriyi (Entity), az önce oluşturduğumuz DTO'ya "map"liyoruz (kopyalıyoruz)
+    var response = new LoanResponseDto
+    {
+        Id = loan.Id,
+        Amount = loan.Amount,
+        Tenor = loan.Tenor,
+        ProfitRate = loan.ProfitRate,
+        StartDate = loan.StartDate,
+        Status = loan.Status.ToString(),
+        // Taksitleri de tek tek DTO listesine çeviriyoruz
+        Installments = loan.Installments.Select(i => new InstallmentDto
+        {
+            Id = i.Id,
+            InstallmentNumber = i.InstallmentNumber,
+            Amount = i.Amount,
+            DueDate = i.DueDate,
+            Status = i.Status.ToString()
+        }).ToList()
+    };
+
+    return response;
 }
+}
+

@@ -1,5 +1,5 @@
 using LoanManagement.Entities.Models;
-
+using LoanManagement.Entities.DTOs; 
 namespace LoanManagement.Business.Abstract;
 
 public interface ILoanService
@@ -9,5 +9,6 @@ public interface ILoanService
     
     // Müşterinin veya bankanın kredileri listelemesi için
     Task<List<Loan>> GetAllLoansAsync();
-    Task<Loan?> GetLoanByIdAsync(int id);
+
+    Task<LoanResponseDto?> GetLoanByIdDtoAsync(int id);
 }

@@ -2,20 +2,20 @@ using LoanManagement.Entities.Enums;
 
 namespace LoanManagement.Entities.Models;
 
+// Taksitler kredi oluşturulurken otomatik olarak hesaplanır ve oluşturulur.
 public class Loan
 {
     public int Id { get; set; }
     public int CustomerId { get; set; }
-    public decimal Amount { get; set; }           // Çekilen toplam tutar
-    public decimal ProfitRate { get; set; }     // Kar oranı (Örn: 1.20)
-    public int Tenor { get; set; }                // Vade (Ay sayısı)
-    public DateTime StartDate { get; set; }       // Kredi başlangıç tarihi
-    public LoanType LoanType { get; set; }        // İhtiyaç/Eğitim/Taşıt
-    public LoanStatus Status { get; set; }        // Aktif/Kapalı
+    public decimal Amount { get; set; }  //Kredi ana para tutarı
+    public int Tenor { get; set; } //Vade süresi (ay cinsinden)
+    public decimal ProfitRate { get; set; } //Kar oranı (örn: 0.20 = %20)
+    public DateTime StartDate { get; set; }
+    public LoanStatus Status { get; set; } //Kredinin mevcut durumu (Active, Closed)
+    /// <summary>Kredi türü (İhtiyaç, Eğitim, Taşıt)</summary>
+    public LoanType LoanType { get; set; }
 
 
-    // İlişkiler
-    public virtual Customer Customer { get; set; } = default!;
-    public virtual ICollection<Installment> Installments { get; set; } = new List<Installment>(); //Bir kredinin birden fazla taksiti olabilir:
+    public virtual Customer? Customer { get; set; } = null!; //İlişkili müşteri nesnesi (Navigation Property)
+    public virtual ICollection<Installment>? Installments { get; set; } = new List<Installment>(); //Krediye ait taksit kayıtları (Navigation Property)
 }
-
