@@ -20,6 +20,16 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddControllers();
 
+// Loan servisi
+builder.Services.AddScoped<ILoanService, LoanService>();
+
+// Payment servisi
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+
+// Mock kredi skoru servisi (Üçüncü parti servis entegrasyonu)
+builder.Services.AddScoped<ICreditScoreService, MockCreditScoreService>();
+
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

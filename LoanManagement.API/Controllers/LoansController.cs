@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using LoanManagement.Business.Abstract;
 using LoanManagement.Entities.Models;
+using LoanManagement.Entities.DTOs;
+using LoanManagement.Entities.Enums;
 
 namespace LoanManagement.API.Controllers;
 
@@ -16,24 +18,63 @@ public class LoansController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateLoan(Loan loan)
+    public async Task<IActionResult> CreateLoan([FromBody] CreateLoanDto dto)
     {
-        // Önemli: Kredi çekilirken başlangıç tarihi bugün set ediliyor
-        loan.StartDate = DateTime.Now;
+        try
+        {
+            var loan = new Loan
+            {
+                CustomerId = dto.CustomerId,
+                Amount = dto.Amount,
+                Tenor = dto.Tenor,
+                ProfitRate = dto.ProfitRate,
+                LoanType = dto.LoanType,
+                StartDate = DateTime.Now
+            };
 
-        await _loanService.CreateLoanWithInstallmentsAsync(loan);
-        return Ok(loan);
+            await _loanService.CreateLoanWithInstallmentsAsync(loan);
+            var loanDto = await _loanService.GetLoanByIdDtoAsync(loan.Id);
+            return Ok(loanDto);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        // Artık DTO dönen metodu çağırıyoruz
         var loanDto = await _loanService.GetLoanByIdDtoAsync(id);
 
         if (loanDto == null)
             return NotFound("Kredi bulunamadı.");
 
         return Ok(loanDto);
+    }
+
+    [HttpPost("pay-installment")]
+    public async Task<IActionResult> PayInstallment([FromBody] PaymentRequestDto request)
+    {
+        try
+        {
+            var result = await _loanService.PayInstallmentAsync(request);
+
+            if (result == null)
+                return NotFound("Taksit bulunamadı.");
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var loans = await _loanService.GetAllLoansDtoAsync();
+        return Ok(loans);
     }
 }

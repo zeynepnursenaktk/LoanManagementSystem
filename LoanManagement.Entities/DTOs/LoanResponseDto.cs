@@ -5,6 +5,9 @@ namespace LoanManagement.Entities.DTOs;
 public class LoanResponseDto
 {
     public int Id { get; set; }
+    public int CustomerId { get; set; }
+    public string CustomerFullName { get; set; } = null!;
+    public string LoanTypeName { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public int Tenor { get; set; }
     public decimal ProfitRate { get; set; }

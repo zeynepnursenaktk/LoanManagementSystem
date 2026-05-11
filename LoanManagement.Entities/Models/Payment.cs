@@ -7,6 +7,5 @@ public class Payment
     public decimal Amount { get; set; }
     public DateTime PaymentDate { get; set; }
 
-    /// <summary>Ödemenin ait olduğu taksit</summary>
-    public virtual Installment? Installment { get; set; }
+    public virtual Installment? Installment { get; set; }     //Ödemenin ait olduğu taksitD
 }
