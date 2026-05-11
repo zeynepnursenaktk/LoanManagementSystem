@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="LoanManagement.API/LoanManagement.API.csproj" />
+  <Project Path="LoanManagement.Business/LoanManagement.Business.csproj" />
+  <Project Path="LoanManagement.DataAccess/LoanManagement.DataAccess.csproj" />
+  <Project Path="LoanManagement.Entities/LoanManagement.Entities.csproj" />
+</Solution>
