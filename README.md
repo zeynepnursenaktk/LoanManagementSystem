@@ -315,6 +315,4 @@ Test verileri `TestData/` altında, fixture'lar `Fixtures/` altındadır.
 
 ---
 
-## Lisans
 
-İç eğitim / staj projesi. Tüm hakları saklıdır.
