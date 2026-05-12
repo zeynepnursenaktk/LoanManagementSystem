@@ -8,17 +8,17 @@ public class LoanDbContext : DbContext
     public LoanDbContext(DbContextOptions<LoanDbContext> options) : base(options)
     {
     }
-
-    public DbSet<Customer> Customers { get; set; }
+    public DbSet<User> Users { get; set; }  
     public DbSet<Loan> Loans { get; set; }
     public DbSet<Installment> Installments { get; set; }
     public DbSet<Payment> Payments { get; set; }
+    public DbSet<Customer> Customers { get; set; }  
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-    
+
         modelBuilder.Entity<Loan>()
             .Property(l => l.Amount)
             .HasColumnType("decimal(18,2)");

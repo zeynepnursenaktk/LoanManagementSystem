@@ -1,4 +1,4 @@
-using LoanManagement.Entities.DTOs;
+namespace LoanManagement.Entities.DTOs;
 
 public class CustomerListDto
 {

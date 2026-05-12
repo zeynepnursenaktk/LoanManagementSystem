@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using LoanManagement.Business.Abstract;
 using LoanManagement.Entities.DTOs;
 
@@ -6,6 +7,7 @@ namespace LoanManagement.API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class LoansController : ControllerBase
 {
     private readonly ILoanService _loanService;
@@ -15,63 +17,52 @@ public class LoansController : ControllerBase
         _loanService = loanService;
     }
 
-    // Yeni bir kredi oluşturur ve taksit planını otomatik olarak oluşturur.
+    /// Yeni kredi oluşturur ve taksit planını otomatik hesaplar.
     [HttpPost]
-    public async Task<IActionResult> CreateLoan([FromBody] LoanRequestDto dto)
+    public async Task<IActionResult> Create([FromBody] LoanRequestDto dto)
     {
         try
         {
             int loanId = await _loanService.CreateLoanWithInstallmentsAsync(dto);
-            
-            var createdLoanDto = await _loanService.GetLoanByIdDtoAsync(loanId);
-            return CreatedAtAction(nameof(GetById), new { id = loanId }, createdLoanDto);
+            var loan = await _loanService.GetLoanByIdDtoAsync(loanId);
+            return CreatedAtAction(nameof(GetById), new { id = loanId }, loan);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { message = "Sunucu hatası: " + ex.Message });
-        }
     }
 
-    // Belirtilen ID'ye sahip kredinin detaylarını getirir.
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
-    {
-        var loanDto = await _loanService.GetLoanByIdDtoAsync(id);
-
-        if (loanDto == null)
-            return NotFound(new { message = "Kredi bulunamadı." });
-
-        return Ok(loanDto);
-    }
-
-    // Bir müşterinin sıradaki taksidini öder.
-    [HttpPost("pay-installment")]
-    public async Task<IActionResult> PayInstallment([FromBody] PaymentRequestDto request)
-    {
-        try
-        {
-            var result = await _loanService.PayInstallmentAsync(request);
-
-            if (result == null)
-                return NotFound(new { message = "Taksit bulunamadı." });
-
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    // Tüm kredileri müşteri ve taksit bilgileriyle birlikte getirir.
+    /// Tüm kredileri listeler.
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
         var loans = await _loanService.GetAllLoansDtoAsync();
+        return Ok(loans);
+    }
+
+    /// ID'ye göre kredi detayını getirir.
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var loan = await _loanService.GetLoanByIdDtoAsync(id);
+        if (loan == null) return NotFound(new { message = "Kredi bulunamadı." });
+        return Ok(loan);
+    }
+
+    /// Müşteriye ait kredileri listeler.
+    [HttpGet("by-customer/{customerId}")]
+    public async Task<IActionResult> GetByCustomer(int customerId)
+    {
+        var loans = await _loanService.GetLoansByCustomerIdAsync(customerId);
         return Ok(loans);
     }
 }

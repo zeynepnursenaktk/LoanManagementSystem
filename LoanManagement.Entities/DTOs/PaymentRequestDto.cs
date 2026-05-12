@@ -1,8 +1,8 @@
-namespace LoanManagement.Entities.DTOs
+namespace LoanManagement.Entities.DTOs;
+
+/// Ödeme isteği: Belirli bir taksit ID'si ile ödeme yapılır.
+/// Bir ödeme yalnızca tek bir takside ait olabilir.
+public class PaymentRequestDto
 {
-    public class PaymentRequestDto
-    {
-        public int CustomerId { get; set; }
-        public int LoanNumber { get; set; } // müşteri için sıralı kredi numarası (1,2,...)
-    }
+    public int InstallmentId { get; set; }
 }

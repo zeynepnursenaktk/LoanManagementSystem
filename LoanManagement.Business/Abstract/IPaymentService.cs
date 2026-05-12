@@ -1,10 +1,15 @@
-using LoanManagement.Entities.Models;
+using LoanManagement.Entities.DTOs;
 
 namespace LoanManagement.Business.Abstract;
 
 public interface IPaymentService
 {
-    Task<List<Payment>> GetAllPaymentsAsync();
+    // Belirli bir taksit için ödeme yapar. Aynı taksit iki kere ödenemez.
+    Task<PaymentResponseDto> PayInstallmentAsync(PaymentRequestDto request);
 
-    Task<List<Installment>> GetInstallmentsByLoanIdAsync(int loanId);
+    // Tüm ödemeleri listeler.
+    Task<List<PaymentResponseDto>> GetAllPaymentsAsync();
+
+    // Müşteri bazlı ödemeleri getirir.
+    Task<List<PaymentResponseDto>> GetPaymentsByCustomerIdAsync(int customerId);
 }

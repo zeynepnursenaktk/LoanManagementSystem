@@ -5,28 +5,43 @@ using LoanManagement.Entities.Models;
 using LoanManagement.Entities.Enums;
 using LoanManagement.Entities.DTOs;
 
-
 namespace LoanManagement.Business.Services;
 
 public class LoanService : ILoanService
 {
     private readonly LoanDbContext _context;
+    private readonly ICreditScoreService _creditScoreService;
 
-    public LoanService(LoanDbContext context)
+    public LoanService(LoanDbContext context, ICreditScoreService creditScoreService)
     {
         _context = context;
+        _creditScoreService = creditScoreService;
     }
 
+    /// Yeni kredi oluşturur ve taksit planını otomatik olarak hesaplar.
+    /// Kar oranı yıllık olarak kabul edilir.
+    /// Formül: ToplamGeriÖdeme = AnaPara + (AnaPara × YıllıkKarOranı × VadeAy / 12)
     public async Task<int> CreateLoanWithInstallmentsAsync(LoanRequestDto loanDto)
     {
-        if (loanDto.Tenor <= 0)
-            throw new ArgumentException("Vade (Tenor) değeri 0 olamaz!", nameof(loanDto.Tenor));
+        // Müşteri var mı kontrol et
+        var customerExists = await _context.Customers.AnyAsync(c => c.Id == loanDto.CustomerId);
+        if (!customerExists)
+            throw new KeyNotFoundException("Müşteri bulunamadı.");
 
+        // Kredi skoru kontrolü (Mock servis)
+        int creditScore = await _creditScoreService.GetCreditScoreAsync(loanDto.CustomerId);
+        if (creditScore < 600)
+            throw new InvalidOperationException($"Müşterinin kredi skoru ({creditScore}) yetersiz. Minimum 600 gereklidir.");
+
+        // Validasyonlar
         if (loanDto.Amount <= 0)
-            throw new ArgumentException("Kredi tutarı (Amount) 0 olamaz!", nameof(loanDto.Amount));
-
+            throw new ArgumentException("Kredi tutarı 0'dan büyük olmalıdır.");
+        if (loanDto.Tenor <= 0 || loanDto.Tenor > 120)
+            throw new ArgumentException("Vade 1-120 ay arasında olmalıdır.");
+        if (loanDto.ProfitRate < 0 || loanDto.ProfitRate > 5)
+            throw new ArgumentException("Kar oranı 0-5 (yani %0-%500) arasında olmalıdır.");
         if (!Enum.IsDefined(typeof(LoanType), loanDto.LoanType))
-            throw new ArgumentException("Geçersiz kredi türü!", nameof(loanDto.LoanType));
+            throw new ArgumentException("Geçersiz kredi türü. 0: İhtiyaç, 1: Eğitim, 2: Taşıt");
 
         var loan = new Loan
         {
@@ -39,153 +54,97 @@ public class LoanService : ILoanService
             Status = LoanStatus.Active
         };
 
-        decimal totalPayable = loan.Amount + (loan.Amount * loan.ProfitRate);
-        decimal monthlyAmount = totalPayable / loan.Tenor;
+        // *** TAKSIT HESAPLAMA ***
+        // Kar oranı YILLIK olarak kabul edilir.
+        // Toplam kar = AnaPara × YıllıkOran × (VadeAy / 12)
+        decimal totalProfit = loan.Amount * loan.ProfitRate * ((decimal)loan.Tenor / 12m);
+        decimal totalPayable = loan.Amount + totalProfit;
+        decimal monthlyAmount = Math.Round(totalPayable / loan.Tenor, 2);
+
+        // Son taksitte kuruş farkını düzelt
+        decimal lastInstallmentAmount = totalPayable - (monthlyAmount * (loan.Tenor - 1));
 
         for (int i = 1; i <= loan.Tenor; i++)
         {
             var installment = new Installment
             {
                 InstallmentNumber = i,
-                Amount = monthlyAmount,
+                Amount = (i == loan.Tenor) ? lastInstallmentAmount : monthlyAmount,
                 DueDate = loan.StartDate.AddMonths(i),
                 Status = InstallmentStatus.Unpaid
             };
-
-            loan.Installments.Add(installment);
+            loan.Installments!.Add(installment);
         }
 
         _context.Loans.Add(loan);
         await _context.SaveChangesAsync();
 
-        return loan.Id; 
+        return loan.Id;
     }
 
-
-    // ID'ye göre tek bir krediyi taksitleri ve müşteri bilgisiyle birlikte getirir.
     public async Task<LoanResponseDto?> GetLoanByIdDtoAsync(int id)
     {
-
         var loan = await _context.Loans
-            .Include(l => l.Installments)
+            .Include(l => l.Installments)!.ThenInclude(i => i.Payment)
             .Include(l => l.Customer)
             .FirstOrDefaultAsync(l => l.Id == id);
 
         if (loan == null) return null;
-
-        if (!Enum.IsDefined(typeof(LoanType), loan.LoanType))
-            throw new Exception("Geçersiz kredi türü! 0: İhtiyaç, 1: Eğitim, 2: Araç");
-
-        var response = new LoanResponseDto
-        {
-            Id = loan.Id,
-            CustomerId = loan.Customer.Id,
-            CustomerFullName = $"{loan.Customer.FirstName} {loan.Customer.LastName}",
-            LoanTypeName = GetLoanTypeName(loan.LoanType),
-            Amount = loan.Amount,
-            Tenor = loan.Tenor,
-            ProfitRate = loan.ProfitRate,
-            StartDate = loan.StartDate,
-            Status = loan.Status.ToString(),
-
-            Installments = loan.Installments.Select(i => new InstallmentDto
-            {
-                Id = i.Id,
-                InstallmentNumber = i.InstallmentNumber,
-                Amount = i.Amount,
-                DueDate = i.DueDate,
-                Status = i.Status.ToString()
-            }).ToList()
-        };
-
-        return response;
+        return MapToDto(loan);
     }
 
-    public async Task<PaymentResponseDto?> PayInstallmentAsync(PaymentRequestDto request)
-    {
-        // Müşterinin tüm kredilerini çek, sıralı şekilde
-        var loans = await _context.Loans
-            .Include(l => l.Customer)
-            .Include(l => l.Installments)
-            .Where(l => l.CustomerId == request.CustomerId)
-            .OrderBy(l => l.Id)
-            .ToListAsync();
-
-        if (loans.Count == 0)
-            throw new Exception("Bu müşteriye ait kredi bulunamadı.");
-
-        // Kaçıncı kredi olduğunu kontrol et
-        if (request.LoanNumber < 1 || request.LoanNumber > loans.Count)
-            throw new Exception($"Geçersiz kredi numarası. Bu müşterinin {loans.Count} kredisi bulunmaktadır.");
-
-        // LoanNumber 1'den başladığı için index = LoanNumber - 1
-        var loan = loans[request.LoanNumber - 1];
-
-        // Sıradaki ödenmemiş taksiti bul
-        var installment = loan.Installments
-            .Where(i => i.Status == InstallmentStatus.Unpaid)
-            .OrderBy(i => i.InstallmentNumber)
-            .FirstOrDefault();
-
-        if (installment == null)
-            throw new Exception($"{request.LoanNumber}. krediye ait ödenecek taksit bulunamadı. Tüm taksitler ödenmiş olabilir.");
-
-
-        // Taksiti ödendi olarak işaretle
-        installment.Status = InstallmentStatus.Paid;
-
-        // Ödenmemiş taksit kalmadıysa krediyi kapat
-        bool hasUnpaidInstallments = loan.Installments.Any(i => i.Status == InstallmentStatus.Unpaid);
-
-        if (!hasUnpaidInstallments)
-            loan.Status = LoanStatus.Closed;
-
-        await _context.SaveChangesAsync();
-
-        return new PaymentResponseDto
-        {
-            Message = $"{request.LoanNumber}. kredinin {installment.InstallmentNumber}. taksiti başarıyla ödendi.",
-            CustomerId = loan.CustomerId,
-            CustomerName = $"{loan.Customer.FirstName} {loan.Customer.LastName}",
-            LoanId = loan.Id,
-            LoanTypeName = GetLoanTypeName(loan.LoanType),
-            InstallmentId = installment.Id,
-            InstallmentNumber = installment.InstallmentNumber,
-            PaidAmount = installment.Amount,
-            IsLoanClosed = loan.Status == LoanStatus.Closed
-        };
-    }
-    // Tüm kredileri müşteri bilgisi ve taksitleriyle birlikte DTO listesi olarak döner.
     public async Task<List<LoanResponseDto>> GetAllLoansDtoAsync()
     {
         var loans = await _context.Loans
             .Include(l => l.Customer)
-            .Include(l => l.Installments)
+            .Include(l => l.Installments)!.ThenInclude(i => i.Payment)
+            .OrderByDescending(l => l.Id)
             .ToListAsync();
 
-        return loans.Select(loan => new LoanResponseDto
+        return loans.Select(MapToDto).ToList();
+    }
+
+    public async Task<List<LoanResponseDto>> GetLoansByCustomerIdAsync(int customerId)
+    {
+        var loans = await _context.Loans
+            .Include(l => l.Customer)
+            .Include(l => l.Installments)!.ThenInclude(i => i.Payment)
+            .Where(l => l.CustomerId == customerId)
+            .OrderByDescending(l => l.Id)
+            .ToListAsync();
+
+        return loans.Select(MapToDto).ToList();
+    }
+
+    private static LoanResponseDto MapToDto(Loan loan)
+    {
+        return new LoanResponseDto
         {
             Id = loan.Id,
-            CustomerId = loan.Customer.Id,
+            CustomerId = loan.Customer!.Id,
             CustomerFullName = $"{loan.Customer.FirstName} {loan.Customer.LastName}",
             LoanTypeName = GetLoanTypeName(loan.LoanType),
             Amount = loan.Amount,
             Tenor = loan.Tenor,
             ProfitRate = loan.ProfitRate,
+            TotalPayable = loan.Installments!.Sum(i => i.Amount),
             StartDate = loan.StartDate,
             Status = loan.Status.ToString(),
-            Installments = loan.Installments.Select(i => new InstallmentDto
+            Installments = loan.Installments!.OrderBy(i => i.InstallmentNumber).Select(i => new InstallmentDto
             {
                 Id = i.Id,
+                LoanId = loan.Id,
                 InstallmentNumber = i.InstallmentNumber,
                 Amount = i.Amount,
                 DueDate = i.DueDate,
-                Status = i.Status.ToString()
+                Status = i.Status.ToString(),
+                IsPaid = i.Status == InstallmentStatus.Paid,
+                PaidAmount = i.Payment?.Amount,
+                PaymentDate = i.Payment?.PaymentDate
             }).ToList()
-        }).ToList();
+        };
     }
 
-    // Tekrar eden switch ifadelerini tek noktada toplamak için private yardımcı metod.
     private static string GetLoanTypeName(LoanType loanType) => loanType switch
     {
         LoanType.Personal => "İhtiyaç Kredisi",
